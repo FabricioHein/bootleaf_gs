@@ -19,7 +19,10 @@ $("#full-extent-btn").click(function() {
 });
 
 $("#legend-btn").click(function() {
-  $("#legendModal").modal("show");
+  //TODO: add all the currently added layers here, not just one...
+  $("#legend").html("<img src=https://maps.gcc.tas.gov.au/geoserver/GCC_cc/ows?service=wms&request=getlegendgraphic&layer=Stormwaterpipes&format=image/png>");
+  $("#legend").html("<img src=https://maps.gcc.tas.gov.au/geoserver/GCC_cc/ows?service=wms&request=getlegendgraphic&layer=Stormwaterpipes&format=image/png>");
+  $('#legendModal').modal('show');
   return false;
 });
 
@@ -70,6 +73,7 @@ function sidebarClick(id, lc) {
       $("#sidebar").hide();
       map.invalidateSize();
     }
+    $("#legendModal tbody").append("this is some text")
   }
 }
 
@@ -230,11 +234,17 @@ map.on('click', function(e) {
 
 /* Attribution control */
 function updateAttribution(e) {
+  var attributiontext = "";
+  var attributions = []
   $.each(map._layers, function(index, layer) {
     if (layer.getAttribution) {
-      $("#attribution").html((layer.getAttribution()));
+      if($.inArray(layer.getAttribution(), attributions) === -1) {
+        attributiontext = attributiontext + layer.getAttribution() + '<br>'
+        attributions.push(layer.getAttribution())
+      }
     }
   });
+  $("#attribution").html((attributiontext));
 }
 map.on("layeradd", updateAttribution);
 map.on("layerremove", updateAttribution);
@@ -244,7 +254,7 @@ var attributionControl = L.control({
 });
 attributionControl.onAdd = function (map) {
   var div = L.DomUtil.create("div", "leaflet-control-attribution");
-  div.innerHTML = "<span class='hidden-xs'>Developed by <a href='http://bryanmcbride.com'>bryanmcbride.com</a> | </span><a href='#' onclick='$(\"#attributionModal\").modal(\"show\"); return false;'>Attribution</a>";
+  div.innerHTML = "<span class='hidden-xs'>Developed by <a href='http://bryanmcbride.com'>bmb</a> and <a href='http://agl.pw'>agl</a> | </span><a href='#' onclick='$(\"#attributionModal\").modal(\"show\"); return false;'>Attribution</a>";
   return div;
 };
 map.addControl(attributionControl);

@@ -8,7 +8,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="description" content="">
     <meta name="author" content="">
-    <title>BootLeaf</title>
+    <title>BootLeaf GeoServer</title>
 
     <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
     <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css">
@@ -52,6 +52,7 @@
               <h3 class="panel-title">Layers Listing
               <button type="button" class="btn btn-xs btn-default pull-right" id="sidebar-hide-btn"><i class="fa fa-chevron-left"></i></button></h3>
             </div>
+            <!--
             <div class="panel-body">
               <p>
                 <div class="row">
@@ -61,6 +62,7 @@
                 </div>
               </p>
             </div>
+            -->
             <div class="sidebar-table">
               <table class="table table-hover" id="feature-list">
                 <thead class="hidden">
@@ -98,7 +100,7 @@
             <h4 class="modal-title">Map Legend</h4>
           </div>
           <div class="modal-body">
-            <p>Map Legend goes here...</p>
+            <div id="legend"></div>
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
@@ -128,7 +130,7 @@
           <div class="modal-header">
             <button class="close" type="button" data-dismiss="modal" aria-hidden="true">&times;</button>
             <h4 class="modal-title">
-              Developed by <a href='http://bryanmcbride.com'>bryanmcbride.com</a>
+              Developed by <a href='http://bryanmcbride.com'>bryanmcbride.com</a>, modified by <a href="http://agl.pw"> Alex Leith</a>
             </h4>
           </div>
           <div class="modal-body">
