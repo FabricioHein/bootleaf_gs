@@ -1,7 +1,10 @@
-var map, featureList, boroughSearch = [], theaterSearch = [], museumSearch = [];
+var map, featureLayers = [], featureLayersName = [];
+
+//WMS Base URL
+var owsurl = "https://maps.gcc.tas.gov.au/geoserver/GCC_cc/ows"
 
 $(document).on("click", ".feature-row", function(e) {
-  sidebarClick(parseInt($(this).attr('id')));
+  sidebarClick(parseInt($(this).attr('id')),layerControl);
 });
 
 $("#about-btn").click(function() {
@@ -10,17 +13,16 @@ $("#about-btn").click(function() {
 });
 
 $("#full-extent-btn").click(function() {
-  map.fitBounds(boroughs.getBounds());
+  var locArr = L.latLng(-42.8232,147.2555);
+  map.setView(locArr, 12);
   return false;
 });
 
 $("#legend-btn").click(function() {
-  $("#legendModal").modal("show");
-  return false;
-});
-
-$("#login-btn").click(function() {
-  $("#loginModal").modal("show");
+  //TODO: add all the currently added layers here, not just one...
+  $("#legend").html("<img src=https://maps.gcc.tas.gov.au/geoserver/GCC_cc/ows?service=wms&request=getlegendgraphic&layer=Stormwaterpipes&format=image/png>");
+  $("#legend").html("<img src=https://maps.gcc.tas.gov.au/geoserver/GCC_cc/ows?service=wms&request=getlegendgraphic&layer=Stormwaterpipes&format=image/png>");
+  $('#legendModal').modal('show');
   return false;
 });
 
@@ -46,326 +48,203 @@ $("#sidebar-hide-btn").click(function() {
   map.invalidateSize();
 });
 
-function sidebarClick(id) {
-  map.addLayer(theaterLayer).addLayer(museumLayer);
-  var layer = markerClusters.getLayer(id);
-  markerClusters.zoomToShowLayer(layer, function() {
-    map.setView([layer.getLatLng().lat, layer.getLatLng().lng], 17);
-    layer.fire("click");
-  });
-  /* Hide sidebar and go to the map on small screens */
-  if (document.body.clientWidth <= 767) {
-    $("#sidebar").hide();
-    map.invalidateSize();
+//this is where I add the layer.
+//TODO: Check if this layer is added yet.
+function sidebarClick(id, lc) {
+  var index = $.inArray(featureLayers[id], intLayers);//intLayers.indexOf(layer);
+  //only add the layer if it's not added already...
+  if(index == -1) {
+    var newLayer = new L.TileLayer.WMS(owsurl + "?SERVICE=WMS&", {
+          layers: featureLayers[id],
+          format: 'image/png',
+          transparent: true,
+          maxZoom: 20,
+          attribution: gccAtt
+    });
+    lOverlays[featureLayersName[id]] = newLayer;
+    map.addLayer(newLayer);
+    map.removeControl(layerControl);
+    updateInteractiveLayers(featureLayers[id]);
+    layerControl = L.control.layers(baseLayers, lOverlays, {
+      collapsed: isCollapsed
+    }).addTo(map);
+    /* Hide sidebar and go to the map on small screens */
+    if (document.body.clientWidth <= 767) {
+      $("#sidebar").hide();
+      map.invalidateSize();
+    }
+    $("#legendModal tbody").append("this is some text")
   }
 }
 
-/* Basemap Layers */
-var mapquestOSM = L.tileLayer("http://{s}.mqcdn.com/tiles/1.0.0/osm/{z}/{x}/{y}.png", {
-  maxZoom: 19,
-  subdomains: ["otile1", "otile2", "otile3", "otile4"],
-  attribution: 'Tiles courtesy of <a href="http://www.mapquest.com/" target="_blank">MapQuest</a> <img src="http://developer.mapquest.com/content/osm/mq_logo.png">. Map data (c) <a href="http://www.openstreetmap.org/" target="_blank">OpenStreetMap</a> contributors, CC-BY-SA.'
-});
-var mapquestOAM = L.tileLayer("http://{s}.mqcdn.com/tiles/1.0.0/sat/{z}/{x}/{y}.jpg", {
-  maxZoom: 18,
-  subdomains: ["oatile1", "oatile2", "oatile3", "oatile4"],
-  attribution: 'Tiles courtesy of <a href="http://www.mapquest.com/" target="_blank">MapQuest</a>. Portions Courtesy NASA/JPL-Caltech and U.S. Depart. of Agriculture, Farm Service Agency'
-});
-var mapquestHYB = L.layerGroup([L.tileLayer("http://{s}.mqcdn.com/tiles/1.0.0/sat/{z}/{x}/{y}.jpg", {
-  maxZoom: 18,
-  subdomains: ["oatile1", "oatile2", "oatile3", "oatile4"]
-}), L.tileLayer("http://{s}.mqcdn.com/tiles/1.0.0/hyb/{z}/{x}/{y}.png", {
-  maxZoom: 19,
-  subdomains: ["oatile1", "oatile2", "oatile3", "oatile4"],
-  attribution: 'Labels courtesy of <a href="http://www.mapquest.com/" target="_blank">MapQuest</a> <img src="http://developer.mapquest.com/content/osm/mq_logo.png">. Map data (c) <a href="http://www.openstreetmap.org/" target="_blank">OpenStreetMap</a> contributors, CC-BY-SA. Portions Courtesy NASA/JPL-Caltech and U.S. Depart. of Agriculture, Farm Service Agency'
-})]);
+//GeoServer Layers
+var gccAtt = 'Data &copy <a href=http://maps.gcc.tas.gov.au>GCC</a>, <a href="https://maps.gcc.tas.gov.au/licensing.html">CC-BY</a>';
+var lOverlays = {};
 
-/* Overlay Layers */
-var highlight = L.geoJson(null);
+var intLayers = [];
+var intLayersString = "";
+function updateInteractiveLayers(layer) {
+    var index = $.inArray(layer, intLayers);//intLayers.indexOf(layer);
+    if(index > -1) {
+        intLayers.splice(index,1);
+    } else {
+        intLayers.push(layer);
+    }
+    intLayersString = intLayers.join();
+};
 
-var boroughs = L.geoJson(null, {
-  style: function (feature) {
-    return {
-      color: "black",
-      fill: false,
-      opacity: 1,
-      clickable: false
-    };
-  },
-  onEachFeature: function (feature, layer) {
-    boroughSearch.push({
-      name: layer.feature.properties.BoroName,
-      source: "Boroughs",
-      id: L.stamp(layer),
-      bounds: layer.getBounds()
-    });
-  }
-});
-$.getJSON("data/boroughs.geojson", function (data) {
-  boroughs.addData(data);
-});
-
-var subwayLines = L.geoJson(null, {
-  style: function (feature) {
-    if (feature.properties.route_id === "1" || feature.properties.route_id === "2" || feature.properties.route_id === "3") {
-      return {
-        color: "#ff3135",
-        weight: 3,
-        opacity: 1
-      };
-    }
-    if (feature.properties.route_id === "4" || feature.properties.route_id === "5" || feature.properties.route_id === "6") {
-      return {
-        color: "#009b2e",
-        weight: 3,
-        opacity: 1
-      };
-    }
-    if (feature.properties.route_id === "7") {
-      return {
-        color: "#ce06cb",
-        weight: 3,
-        opacity: 1
-      };
-    }
-    if (feature.properties.route_id === "A" || feature.properties.route_id === "C" || feature.properties.route_id === "E" || feature.properties.route_id === "SI" || feature.properties.route_id === "H") {
-      return {
-        color: "#fd9a00",
-        weight: 3,
-        opacity: 1
-      };
-    }
-    if (feature.properties.route_id === "Air") {
-      return {
-        color: "#ffff00",
-        weight: 3,
-        opacity: 1
-      };
-    }
-    if (feature.properties.route_id === "B" || feature.properties.route_id === "D" || feature.properties.route_id === "F" || feature.properties.route_id === "M") {
-      return {
-        color: "#ffff00",
-        weight: 3,
-        opacity: 1
-      };
-    }
-    if (feature.properties.route_id === "G") {
-      return {
-        color: "#9ace00",
-        weight: 3,
-        opacity: 1
-      };
-    }
-    if (feature.properties.route_id === "FS" || feature.properties.route_id === "GS") {
-      return {
-        color: "#6e6e6e",
-        weight: 3,
-        opacity: 1
-      };
-    }
-    if (feature.properties.route_id === "J" || feature.properties.route_id === "Z") {
-      return {
-        color: "#976900",
-        weight: 3,
-        opacity: 1
-      };
-    }
-    if (feature.properties.route_id === "L") {
-      return {
-        color: "#969696",
-        weight: 3,
-        opacity: 1
-      };
-    }
-    if (feature.properties.route_id === "N" || feature.properties.route_id === "Q" || feature.properties.route_id === "R") {
-      return {
-        color: "#ffff00",
-        weight: 3,
-        opacity: 1
-      };
-    }
-  },
-  onEachFeature: function (feature, layer) {
-    if (feature.properties) {
-      var content = "<table class='table table-striped table-bordered table-condensed'>" + "<tr><th>Division</th><td>" + feature.properties.Division + "</td></tr>" + "<tr><th>Line</th><td>" + feature.properties.Line + "</td></tr>" + "<table>";
-      layer.on({
-        click: function (e) {
-          $("#feature-title").html(feature.properties.Line);
-          $("#feature-info").html(content);
-          $("#featureModal").modal("show");
-          highlight.clearLayers().addLayer(L.circleMarker([e.latlng.lat, e.latlng.lng], {
-            stroke: false,
-            fillColor: "#00FFFF",
-            fillOpacity: 0.7,
-            radius: 10
-          }));
+function handleJson(data) {
+    selectedFeature = L.geoJson(data, {
+        style: function (feature) {
+            return {color: 'yellow'};
+        },
+        onEachFeature: function (feature, layer) {
+            var content = "";
+            content = content + "<b><u>" + feature.id.split('.')[0] + "</b></u><br>";
+            delete feature.properties.bbox;
+            for (var name in feature.properties) {content = content + "<b>" + name + ":</b> " + feature.properties[name] + "<br>"};
+            var popup = L.popup()
+                .setLatLng(queryCoordinates)
+                .setContent(content)
+                .openOn(map);
+            layer.bindPopup(content);
+            layer.on({
+                mouseover: highlightFeature,
+                mouseout: resetHighlight
+            });
+        },                
+        pointToLayer: function (feature, latlng) {
+            return L.circleMarker(latlng, {
+                radius: 5,
+                fillColor: "yellow",
+                color: "#000",
+                weight: 5,
+                opacity: 0.6,
+                fillOpacity: 0.2
+            });
         }
-      });
-    }
-    layer.on({
-      mouseover: function (e) {
-        var layer = e.target;
-        layer.setStyle({
-          weight: 3,
-          color: "#00FFFF",
-          opacity: 1
-        });
-        if (!L.Browser.ie && !L.Browser.opera) {
-          layer.bringToFront();
-        }
-      },
-      mouseout: function (e) {
-        subwayLines.resetStyle(e.target);
-      }
     });
-  }
-});
-$.getJSON("data/subways.geojson", function (data) {
-  subwayLines.addData(data);
-});
+    selectedFeature.addTo(map);
+}
 
-/* Single marker cluster layer to hold all clusters */
-var markerClusters = new L.MarkerClusterGroup({
-  spiderfyOnMaxZoom: true,
-  showCoverageOnHover: false,
-  zoomToBoundsOnClick: true,
-  disableClusteringAtZoom: 16
-});
+//Query layer functionality.
+var selectedFeature;
+var queryCoordinates;
+var src = new Proj4js.Proj('EPSG:4326');
+var dst = new Proj4js.Proj('EPSG:28355');
 
-/* Empty layer placeholder to add to layer control for listening when to add/remove theaters to markerClusters layer */
-var theaterLayer = L.geoJson(null);
-var theaters = L.geoJson(null, {
-  pointToLayer: function (feature, latlng) {
-    return L.marker(latlng, {
-      icon: L.icon({
-        iconUrl: "assets/img/theater.png",
-        iconSize: [24, 28],
-        iconAnchor: [12, 28],
-        popupAnchor: [0, -25]
-      }),
-      title: feature.properties.NAME,
-      riseOnHover: true
+function highlightFeature(e) {
+    var layer = e.target;
+    layer.setStyle({
+        fillColor: "yellow",
+        color: "yellow",
+        weight: 5,
+        opacity: 1
     });
-  },
-  onEachFeature: function (feature, layer) {
-    if (feature.properties) {
-      var content = "<table class='table table-striped table-bordered table-condensed'>" + "<tr><th>Name</th><td>" + feature.properties.NAME + "</td></tr>" + "<tr><th>Phone</th><td>" + feature.properties.TEL + "</td></tr>" + "<tr><th>Address</th><td>" + feature.properties.ADDRESS1 + "</td></tr>" + "<tr><th>Website</th><td><a class='url-break' href='" + feature.properties.URL + "' target='_blank'>" + feature.properties.URL + "</a></td></tr>" + "<table>";
-      layer.on({
-        click: function (e) {
-          $("#feature-title").html(feature.properties.NAME);
-          $("#feature-info").html(content);
-          $("#featureModal").modal("show");
-          highlight.clearLayers().addLayer(L.circleMarker([feature.geometry.coordinates[1], feature.geometry.coordinates[0]], {
-            stroke: false,
-            fillColor: "#00FFFF",
-            fillOpacity: 0.7,
-            radius: 10
-          }));
-        }
-      });
-      $("#feature-list tbody").append('<tr class="feature-row" id="'+L.stamp(layer)+'"><td style="vertical-align: middle;"><img width="16" height="18" src="assets/img/theater.png"></td><td class="feature-name">'+layer.feature.properties.NAME+'</td><td style="vertical-align: middle;"><i class="fa fa-chevron-right pull-right"></i></td></tr>');
-      theaterSearch.push({
-        name: layer.feature.properties.NAME,
-        address: layer.feature.properties.ADDRESS1,
-        source: "Theaters",
-        id: L.stamp(layer),
-        lat: layer.feature.geometry.coordinates[1],
-        lng: layer.feature.geometry.coordinates[0]
-      });
-    }
-  }
-});
-$.getJSON("data/DOITT_THEATER_01_13SEPT2010.geojson", function (data) {
-  theaters.addData(data);
-  map.addLayer(theaterLayer);
-});
 
-/* Empty layer placeholder to add to layer control for listening when to add/remove museums to markerClusters layer */
-var museumLayer = L.geoJson(null);
-var museums = L.geoJson(null, {
-  pointToLayer: function (feature, latlng) {
-    return L.marker(latlng, {
-      icon: L.icon({
-        iconUrl: "assets/img/museum.png",
-        iconSize: [24, 28],
-        iconAnchor: [12, 28],
-        popupAnchor: [0, -25]
-      }),
-      title: feature.properties.NAME,
-      riseOnHover: true
+    if (!L.Browser.ie && !L.Browser.opera) {
+        layer.bringToFront();
+    }
+}
+
+function resetHighlight(e) {
+    var layer = e.target;
+    layer.setStyle({
+        radius: 5,
+        fillColor: "yellow",
+        color: "yellow",
+        weight: 5,
+        opacity: 0.6,
+        fillOpacity: 0.2
     });
-  },
-  onEachFeature: function (feature, layer) {
-    if (feature.properties) {
-      var content = "<table class='table table-striped table-bordered table-condensed'>" + "<tr><th>Name</th><td>" + feature.properties.NAME + "</td></tr>" + "<tr><th>Phone</th><td>" + feature.properties.TEL + "</td></tr>" + "<tr><th>Address</th><td>" + feature.properties.ADRESS1 + "</td></tr>" + "<tr><th>Website</th><td><a class='url-break' href='" + feature.properties.URL + "' target='_blank'>" + feature.properties.URL + "</a></td></tr>" + "<table>";
-      layer.on({
-        click: function (e) {
-          $("#feature-title").html(feature.properties.NAME);
-          $("#feature-info").html(content);
-          $("#featureModal").modal("show");
-          highlight.clearLayers().addLayer(L.circleMarker([feature.geometry.coordinates[1], feature.geometry.coordinates[0]], {
-            stroke: false,
-            fillColor: "#00FFFF",
-            fillOpacity: 0.7,
-            radius: 10
-          }));
-        }
-      });
-      $("#feature-list tbody").append('<tr class="feature-row" id="'+L.stamp(layer)+'"><td style="vertical-align: middle;"><img width="16" height="18" src="assets/img/museum.png"></td><td class="feature-name">'+layer.feature.properties.NAME+'</td><td style="vertical-align: middle;"><i class="fa fa-chevron-right pull-right"></i></td></tr>');
-      museumSearch.push({
-        name: layer.feature.properties.NAME,
-        address: layer.feature.properties.ADRESS1,
-        source: "Museums",
-        id: L.stamp(layer),
-        lat: layer.feature.geometry.coordinates[1],
-        lng: layer.feature.geometry.coordinates[0]
-      });
-    }
-  }
-});
-$.getJSON("data/DOITT_MUSEUM_01_13SEPT2010.geojson", function (data) {
-  museums.addData(data);
+}
+
+//Define layers
+var LISTTopographic = new L.tileLayer("https://services.thelist.tas.gov.au/arcgis/rest/services/Basemaps/Topographic/ImageServer/tile/{z}/{y}/{x}", {
+    attribution: "Basemap &copy The LIST",
+    maxZoom: 20,
+    maxNativeZoom: 18
 });
 
+var LISTAerial = new L.tileLayer("https://services.thelist.tas.gov.au/arcgis/rest/services/Basemaps/Orthophoto/ImageServer/tile/{z}/{y}/{x}", {
+    attribution: "Basemap &copy The LIST",
+    maxZoom: 20,
+    maxNativeZoom: 19
+});
+
+var center = new L.LatLng(-42.8232,147.2555);
 map = L.map("map", {
-  zoom: 10,
-  center: [40.702222, -73.979378],
-  layers: [mapquestOSM, boroughs, markerClusters, highlight],
+  zoom: 14,
+  center: center,
+  layers: [LISTTopographic],
   zoomControl: false,
   attributionControl: false
 });
 
-/* Layer control listeners that allow for a single markerClusters layer */
-map.on("overlayadd", function(e) {
-  if (e.layer === theaterLayer) {
-    markerClusters.addLayer(theaters);
-  }
-  if (e.layer === museumLayer) {
-    markerClusters.addLayer(museums);
-  }
-});
+//Set up trigger functions for adding layers to interactivity.
+map.on('overlayadd', function(e) {
+    updateInteractiveLayers(e.layer.options.layers);
+}); 
+map.on('overlayremove', function(e) {
+    updateInteractiveLayers(e.layer.options.layers);
+}); 
+//TODO: check if there are any interactive layers, don't fire if there aren't.
+map.on('click', function(e) {
+    
+    if(intLayers.length === 0) {
+      return;
+    }
+    if (selectedFeature) {
+        map.removeLayer(selectedFeature);
+    };
+    
+    var p = new Proj4js.Point(e.latlng.lng,e.latlng.lat);
+    Proj4js.transform(src, dst, p);
+    queryCoordinates = e.latlng;
+    
+    var defaultParameters = {
+        service : 'WFS',
+        version : '1.1.1',
+        request : 'GetFeature',
+        typeName : intLayersString,
+        maxFeatures : 100,
+        outputFormat : 'text/javascript',
+        format_options : 'callback:getJson',
+        SrsName : 'EPSG:4326'
+    };
 
-map.on("overlayremove", function(e) {
-  if (e.layer === theaterLayer) {
-    markerClusters.removeLayer(theaters);
-  }
-  if (e.layer === museumLayer) {
-    markerClusters.removeLayer(museums);
-  }
-});
+    var customParams = {
+        //bbox : map.getBounds().toBBoxString(),
+        cql_filter:'DWithin(geom, POINT(' + p.x + ' ' + p.y + '), 10, meters)'
+    };
 
-/* Clear feature highlight when map is clicked */
-map.on("click", function(e) {
-  highlight.clearLayers();
+    var parameters = L.Util.extend(defaultParameters, customParams);
+
+
+    var url = owsurl + L.Util.getParamString(parameters)
+    //console.log(url);
+
+    $.ajax({
+        url : owsurl + L.Util.getParamString(parameters),
+        dataType : 'jsonp',
+        jsonpCallback : 'getJson',
+        success : handleJson
+    });
 });
 
 /* Attribution control */
 function updateAttribution(e) {
+  var attributiontext = "";
+  var attributions = []
   $.each(map._layers, function(index, layer) {
     if (layer.getAttribution) {
-      $("#attribution").html((layer.getAttribution()));
+      if($.inArray(layer.getAttribution(), attributions) === -1) {
+        attributiontext = attributiontext + layer.getAttribution() + '<br>'
+        attributions.push(layer.getAttribution())
+      }
     }
   });
+  $("#attribution").html((attributiontext));
 }
 map.on("layeradd", updateAttribution);
 map.on("layerremove", updateAttribution);
@@ -375,7 +254,7 @@ var attributionControl = L.control({
 });
 attributionControl.onAdd = function (map) {
   var div = L.DomUtil.create("div", "leaflet-control-attribution");
-  div.innerHTML = "<span class='hidden-xs'>Developed by <a href='http://bryanmcbride.com'>bryanmcbride.com</a> | </span><a href='#' onclick='$(\"#attributionModal\").modal(\"show\"); return false;'>Attribution</a>";
+  div.innerHTML = "<span class='hidden-xs'>Developed by <a href='http://bryanmcbride.com'>bmb</a> and <a href='http://agl.pw'>agl</a> | </span><a href='#' onclick='$(\"#attributionModal\").modal(\"show\"); return false;'>Attribution</a>";
   return div;
 };
 map.addControl(attributionControl);
@@ -416,6 +295,40 @@ var locateControl = L.control.locate({
   }
 }).addTo(map);
 
+$.ajax({
+    type: "GET",
+    url: owsurl + "?SERVICE=WMS&request=getcapabilities",
+    dataType: "xml",
+    success: parseXml
+  });
+
+function parseXml(xml)
+{
+  var layerIndex = 0
+
+  //find every Tutorial and print the author
+  $(xml).find("Layer").find("Layer").each(function()
+  {
+    var title = $(this).find("Title").first().text();
+    var name = $(this).find("Name").first().text();
+
+    //Check for layer groups
+    var patt = new RegExp("Group");
+    var res = patt.test(title);
+    if(!res) {
+    featureLayers.push(name)
+      featureLayersName.push(title)
+      $("#feature-list tbody").append('<tr class="feature-row" id="'+layerIndex+'"><td style="vertical-align: middle;"><img width="16" height="18" src="assets/img/museum.png"></td><td class="feature-name">'+title+'</td><td style="vertical-align: middle;"><i class="fa fa-chevron-right pull-right"></i></td></tr>');
+      layerIndex = layerIndex + 1;
+    }
+  });
+
+  // Output:
+  // The Reddest
+  // The Hairiest
+  // The Tallest
+  // The Fattest
+}
 /* Larger screens get expanded layer control and visible sidebar */
 if (document.body.clientWidth <= 767) {
   var isCollapsed = true;
@@ -424,23 +337,11 @@ if (document.body.clientWidth <= 767) {
 }
 
 var baseLayers = {
-  "Street Map": mapquestOSM,
-  "Aerial Imagery": mapquestOAM,
-  "Imagery with Streets": mapquestHYB
+  "LIST Basemap": LISTTopographic,
+  "LIST Imagery": LISTAerial
 };
 
-var groupedOverlays = {
-  "Points of Interest": {
-    "<img src='assets/img/theater.png' width='24' height='28'>&nbsp;Theaters": theaterLayer,
-    "<img src='assets/img/museum.png' width='24' height='28'>&nbsp;Museums": museumLayer
-  },
-  "Reference": {
-    "Boroughs": boroughs,
-    "Subway Lines": subwayLines
-  }
-};
-
-var layerControl = L.control.groupedLayers(baseLayers, groupedOverlays, {
+var layerControl = L.control.layers(baseLayers, lOverlays, {
   collapsed: isCollapsed
 }).addTo(map);
 
@@ -448,150 +349,5 @@ var layerControl = L.control.groupedLayers(baseLayers, groupedOverlays, {
 $("#searchbox").click(function () {
   $(this).select();
 });
+$("#loading").hide();
 
-/* Typeahead search functionality */
-$(document).one("ajaxStop", function () {
-  $("#loading").hide();
-  /* Fit map to boroughs bounds */
-  map.fitBounds(boroughs.getBounds());
-  featureList = new List("features", {valueNames: ["feature-name"]});
-  featureList.sort("feature-name", {order:"asc"});
-
-  var boroughsBH = new Bloodhound({
-    name: "Boroughs",
-    datumTokenizer: function (d) {
-      return Bloodhound.tokenizers.whitespace(d.name);
-    },
-    queryTokenizer: Bloodhound.tokenizers.whitespace,
-    local: boroughSearch,
-    limit: 10
-  });
-
-  var theatersBH = new Bloodhound({
-    name: "Theaters",
-    datumTokenizer: function (d) {
-      return Bloodhound.tokenizers.whitespace(d.name);
-    },
-    queryTokenizer: Bloodhound.tokenizers.whitespace,
-    local: theaterSearch,
-    limit: 10
-  });
-
-  var museumsBH = new Bloodhound({
-    name: "Museums",
-    datumTokenizer: function (d) {
-      return Bloodhound.tokenizers.whitespace(d.name);
-    },
-    queryTokenizer: Bloodhound.tokenizers.whitespace,
-    local: museumSearch,
-    limit: 10
-  });
-
-  var geonamesBH = new Bloodhound({
-    name: "GeoNames",
-    datumTokenizer: function (d) {
-      return Bloodhound.tokenizers.whitespace(d.name);
-    },
-    queryTokenizer: Bloodhound.tokenizers.whitespace,
-    remote: {
-      url: "http://api.geonames.org/searchJSON?username=bootleaf&featureClass=P&maxRows=5&countryCode=US&name_startsWith=%QUERY",
-      filter: function (data) {
-        return $.map(data.geonames, function (result) {
-          return {
-            name: result.name + ", " + result.adminCode1,
-            lat: result.lat,
-            lng: result.lng,
-            source: "GeoNames"
-          };
-        });
-      },
-      ajax: {
-        beforeSend: function (jqXhr, settings) {
-          settings.url += "&east=" + map.getBounds().getEast() + "&west=" + map.getBounds().getWest() + "&north=" + map.getBounds().getNorth() + "&south=" + map.getBounds().getSouth();
-          $("#searchicon").removeClass("fa-search").addClass("fa-refresh fa-spin");
-        },
-        complete: function (jqXHR, status) {
-          $('#searchicon').removeClass("fa-refresh fa-spin").addClass("fa-search");
-        }
-      }
-    },
-    limit: 10
-  });
-  boroughsBH.initialize();
-  theatersBH.initialize();
-  museumsBH.initialize();
-  geonamesBH.initialize();
-
-  /* instantiate the typeahead UI */
-  $("#searchbox").typeahead({
-    minLength: 3,
-    highlight: true,
-    hint: false
-  }, {
-    name: "Boroughs",
-    displayKey: "name",
-    source: boroughsBH.ttAdapter(),
-    templates: {
-      header: "<h4 class='typeahead-header'>Boroughs</h4>"
-    }
-  }, {
-    name: "Theaters",
-    displayKey: "name",
-    source: theatersBH.ttAdapter(),
-    templates: {
-      header: "<h4 class='typeahead-header'><img src='assets/img/theater.png' width='24' height='28'>&nbsp;Theaters</h4>",
-      suggestion: Handlebars.compile(["{{name}}<br>&nbsp;<small>{{address}}</small>"].join(""))
-    }
-  }, {
-    name: "Museums",
-    displayKey: "name",
-    source: museumsBH.ttAdapter(),
-    templates: {
-      header: "<h4 class='typeahead-header'><img src='assets/img/museum.png' width='24' height='28'>&nbsp;Museums</h4>",
-      suggestion: Handlebars.compile(["{{name}}<br>&nbsp;<small>{{address}}</small>"].join(""))
-    }
-  }, {
-    name: "GeoNames",
-    displayKey: "name",
-    source: geonamesBH.ttAdapter(),
-    templates: {
-      header: "<h4 class='typeahead-header'><img src='assets/img/globe.png' width='25' height='25'>&nbsp;GeoNames</h4>"
-    }
-  }).on("typeahead:selected", function (obj, datum) {
-    if (datum.source === "Boroughs") {
-      map.fitBounds(datum.bounds);
-    }
-    if (datum.source === "Theaters") {
-      if (!map.hasLayer(theaterLayer)) {
-        map.addLayer(theaterLayer);
-      }
-      map.setView([datum.lat, datum.lng], 17);
-      if (map._layers[datum.id]) {
-        map._layers[datum.id].fire("click");
-      }
-    }
-    if (datum.source === "Museums") {
-      if (!map.hasLayer(museumLayer)) {
-        map.addLayer(museumLayer);
-      }
-      map.setView([datum.lat, datum.lng], 17);
-      if (map._layers[datum.id]) {
-        map._layers[datum.id].fire("click");
-      }
-    }
-    if (datum.source === "GeoNames") {
-      map.setView([datum.lat, datum.lng], 14);
-    }
-    if ($(".navbar-collapse").height() > 50) {
-      $(".navbar-collapse").collapse("hide");
-    }
-  }).on("typeahead:opened", function () {
-    $(".navbar-collapse.in").css("max-height", $(document).height() - $(".navbar-header").height());
-    $(".navbar-collapse.in").css("height", $(document).height() - $(".navbar-header").height());
-  }).on("typeahead:closed", function () {
-    $(".navbar-collapse.in").css("max-height", "");
-    $(".navbar-collapse.in").css("height", "");
-  });
-  $(".twitter-typeahead").css("position", "static");
-  $(".twitter-typeahead").css("display", "block");
-});
