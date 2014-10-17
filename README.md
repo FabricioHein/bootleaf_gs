@@ -26,3 +26,5 @@ There are a bunch of configurable components, all at the top of app.js.
 1. Refactor some of the variables to be sources from the WMS GetCapabilities request.
 2. Find some nice way to handle basemaps that are customisable
 3. Ensure that the project is easy to copy!
+4. Perhaps there's a more elegant way to display information from selected features... Using a modal, perhaps? Or a slide-up or -out...
+5. Store added layers after a hash, make it shareable.
