@@ -1,27 +1,86 @@
 var map, featureLayers = [], featureLayersName = [];
 
+//Site specific variables...
+//these probably should be abstrated out into an optional local config file and/or local values pulled in from the getcapabilities request
+
+//Native projection from GeoServer WFS
+var src = new Proj4js.Proj('EPSG:4326');
+var dst = new Proj4js.Proj('EPSG:28355');
+
+//Attribution, get from WMS?
+var layerAttribution = 'Data &copy <a href=http://maps.gcc.tas.gov.au>GCC</a>, <a href="https://maps.gcc.tas.gov.au/licensing.html">CC-BY</a>';
+
+//Define base layers
+var LISTTopographic = new L.tileLayer("https://services.thelist.tas.gov.au/arcgis/rest/services/Basemaps/Topographic/ImageServer/tile/{z}/{y}/{x}", {
+    attribution: "Basemap &copy The LIST",
+    maxZoom: 20,
+    maxNativeZoom: 18
+});
+
+var LISTAerial = new L.tileLayer("https://services.thelist.tas.gov.au/arcgis/rest/services/Basemaps/Orthophoto/ImageServer/tile/{z}/{y}/{x}", {
+    attribution: "Basemap &copy The LIST",
+    maxZoom: 20,
+    maxNativeZoom: 19
+});
+
+var baseLayers = {
+  "LIST Basemap": LISTTopographic,
+  "LIST Imagery": LISTAerial
+};
+
+var startCenter = new L.LatLng(-42.8232,147.2555);
+var startZoom = 12;
+var searchBounds = new google.maps.LatLngBounds(
+    new google.maps.LatLng(-42.9063,147.1335),
+    new google.maps.LatLng(-42.7167, 147.3444));
+
+//get the url parameters
+var QueryString = function () {
+  // This function is anonymous, is executed immediately and 
+  // the return value is assigned to QueryString!
+  var query_string = {};
+  var query = window.location.search.substring(1);
+  var vars = query.split("&");
+  for (var i=0;i<vars.length;i++) {
+    var pair = vars[i].split("=");
+      // If first entry with this name
+    if (typeof query_string[pair[0]] === "undefined") {
+      query_string[pair[0]] = pair[1];
+      // If second entry with this name
+    } else if (typeof query_string[pair[0]] === "string") {
+      var arr = [ query_string[pair[0]], pair[1] ];
+      query_string[pair[0]] = arr;
+      // If third or later entry with this name
+    } else {
+      query_string[pair[0]].push(pair[1]);
+    }
+  } 
+    return query_string;
+} ();
+
 //WMS Base URL
-var owsurl = "https://maps.gcc.tas.gov.au/geoserver/GCC_cc/ows"
+var owsurl = QueryString.owsurl;
+
+if(!owsurl) {
+  owsurl = "https://maps.gcc.tas.gov.au/geoserver/GCC_cc/ows";
+}
 
 $(document).on("click", ".feature-row", function(e) {
   sidebarClick(parseInt($(this).attr('id')),layerControl);
 });
 
-$("#about-btn").click(function() {
-  $("#aboutModal").modal("show");
-  return false;
-});
-
 $("#full-extent-btn").click(function() {
-  var locArr = L.latLng(-42.8232,147.2555);
-  map.setView(locArr, 12);
+  map.setView(startCenter, startZoom);
   return false;
 });
 
 $("#legend-btn").click(function() {
   //TODO: add all the currently added layers here, not just one...
-  $("#legend").html("<img src=https://maps.gcc.tas.gov.au/geoserver/GCC_cc/ows?service=wms&request=getlegendgraphic&layer=Stormwaterpipes&format=image/png>");
-  $("#legend").html("<img src=https://maps.gcc.tas.gov.au/geoserver/GCC_cc/ows?service=wms&request=getlegendgraphic&layer=Stormwaterpipes&format=image/png>");
+  var text = "";
+  for (i = 0; i < intLayers.length; i++) { 
+    text += "<b>" + intLayers[i] + "</b><br><img src=https://maps.gcc.tas.gov.au/geoserver/GCC_cc/ows?service=wms&request=getlegendgraphic&layer=" + intLayers[i] + "&format=image/png><br>";
+  }
+  $("#legend").html(text);
   $('#legendModal').modal('show');
   return false;
 });
@@ -48,37 +107,47 @@ $("#sidebar-hide-btn").click(function() {
   map.invalidateSize();
 });
 
+$('#search-form').submit(function(e) {
+    alert("Working....");
+});
+
 //this is where I add the layer.
-//TODO: Check if this layer is added yet.
-function sidebarClick(id, lc) {
-  var index = $.inArray(featureLayers[id], intLayers);//intLayers.indexOf(layer);
+function sidebarClick(id) {
+  var layer = featureLayers[id];
+  var index = $.inArray(layer, intLayers);//intLayers.indexOf(layer);
   //only add the layer if it's not added already...
   if(index == -1) {
-    var newLayer = new L.TileLayer.WMS(owsurl + "?SERVICE=WMS&", {
-          layers: featureLayers[id],
+    addLayer(layer);    
+  }
+}
+
+function addLayer(layer) {
+  var id = $.inArray(layer, featureLayers);
+  if(id === -1) {
+    return;
+  }
+  var newLayer = new L.TileLayer.WMS(owsurl + "?SERVICE=WMS&", {
+          layers: layer,
           format: 'image/png',
           transparent: true,
           maxZoom: 20,
-          attribution: gccAtt
-    });
-    lOverlays[featureLayersName[id]] = newLayer;
-    map.addLayer(newLayer);
-    map.removeControl(layerControl);
-    updateInteractiveLayers(featureLayers[id]);
-    layerControl = L.control.layers(baseLayers, lOverlays, {
-      collapsed: isCollapsed
-    }).addTo(map);
-    /* Hide sidebar and go to the map on small screens */
-    if (document.body.clientWidth <= 767) {
-      $("#sidebar").hide();
-      map.invalidateSize();
-    }
-    $("#legendModal tbody").append("this is some text")
+          attribution: layerAttribution
+  });
+  lOverlays[featureLayersName[id]] = newLayer;
+  map.addLayer(newLayer);
+  map.removeControl(layerControl);
+  updateInteractiveLayers(layer);
+  layerControl = L.control.layers(baseLayers, lOverlays, {
+    collapsed: isCollapsed
+  }).addTo(map);
+  /* Hide sidebar and go to the map on small screens */
+  if (document.body.clientWidth <= 767) {
+    $("#sidebar").hide();
+    map.invalidateSize();
   }
 }
 
 //GeoServer Layers
-var gccAtt = 'Data &copy <a href=http://maps.gcc.tas.gov.au>GCC</a>, <a href="https://maps.gcc.tas.gov.au/licensing.html">CC-BY</a>';
 var lOverlays = {};
 
 var intLayers = [];
@@ -130,8 +199,6 @@ function handleJson(data) {
 //Query layer functionality.
 var selectedFeature;
 var queryCoordinates;
-var src = new Proj4js.Proj('EPSG:4326');
-var dst = new Proj4js.Proj('EPSG:28355');
 
 function highlightFeature(e) {
     var layer = e.target;
@@ -159,23 +226,9 @@ function resetHighlight(e) {
     });
 }
 
-//Define layers
-var LISTTopographic = new L.tileLayer("https://services.thelist.tas.gov.au/arcgis/rest/services/Basemaps/Topographic/ImageServer/tile/{z}/{y}/{x}", {
-    attribution: "Basemap &copy The LIST",
-    maxZoom: 20,
-    maxNativeZoom: 18
-});
-
-var LISTAerial = new L.tileLayer("https://services.thelist.tas.gov.au/arcgis/rest/services/Basemaps/Orthophoto/ImageServer/tile/{z}/{y}/{x}", {
-    attribution: "Basemap &copy The LIST",
-    maxZoom: 20,
-    maxNativeZoom: 19
-});
-
-var center = new L.LatLng(-42.8232,147.2555);
 map = L.map("map", {
-  zoom: 14,
-  center: center,
+  zoom: startZoom,
+  center: startCenter,
   layers: [LISTTopographic],
   zoomControl: false,
   attributionControl: false
@@ -188,7 +241,7 @@ map.on('overlayadd', function(e) {
 map.on('overlayremove', function(e) {
     updateInteractiveLayers(e.layer.options.layers);
 }); 
-//TODO: check if there are any interactive layers, don't fire if there aren't.
+
 map.on('click', function(e) {
     
     if(intLayers.length === 0) {
@@ -214,15 +267,12 @@ map.on('click', function(e) {
     };
 
     var customParams = {
-        //bbox : map.getBounds().toBBoxString(),
         cql_filter:'DWithin(geom, POINT(' + p.x + ' ' + p.y + '), 10, meters)'
     };
 
     var parameters = L.Util.extend(defaultParameters, customParams);
 
-
     var url = owsurl + L.Util.getParamString(parameters)
-    //console.log(url);
 
     $.ajax({
         url : owsurl + L.Util.getParamString(parameters),
@@ -305,8 +355,6 @@ $.ajax({
 function parseXml(xml)
 {
   var layerIndex = 0
-
-  //find every Tutorial and print the author
   $(xml).find("Layer").find("Layer").each(function()
   {
     var title = $(this).find("Title").first().text();
@@ -323,23 +371,59 @@ function parseXml(xml)
     }
   });
 
-  // Output:
-  // The Reddest
-  // The Hairiest
-  // The Tallest
-  // The Fattest
+//Check for initial layers.
+var layersString = QueryString.layers;
+if(layersString) {
+  var layersList = layersString.split(',')
+  for (i = 0; i < layersList.length; i++) { 
+    addLayer(layersList[i].replace('/',''));
+  }
 }
+
+//Ok, got to get the searching working...
+$(document).ready(function () {
+    (function ($) {
+        $('#layerfilter').keyup(function () {
+            var rex = new RegExp($(this).val(), 'i');
+            $('.searchable tr').hide();
+            $('.searchable tr').filter(function () {
+                return rex.test($(this).text());
+            }).show();
+        })
+    }(jQuery));
+});
+$("#searchclear").click(function(){
+    $("#layerfilter").val('');
+    $('.searchable tr').show();
+});
+
+var options = {
+  bounds: searchBounds
+};
+var searchinput = document.getElementById("searchbox");
+var autocomplete = new google.maps.places.Autocomplete(searchinput, options);
+var leafMarker;
+google.maps.event.addListener(autocomplete, 'place_changed', function() {
+    var place = autocomplete.getPlace();
+    if (!place.geometry) {
+      input.className = 'notfound';
+      return;
+    }
+    if(leafMarker){
+        map.removeLayer(leafMarker);
+    }
+    var leafLocation = new L.LatLng(place.geometry.location.lat(),place.geometry.location.lng())
+    leafMarker = L.marker(leafLocation, {title: place.formatted_address}).bindPopup(place.formatted_address).addTo(map);
+    map.setView(leafLocation, 18)
+}); 
+}
+
 /* Larger screens get expanded layer control and visible sidebar */
 if (document.body.clientWidth <= 767) {
   var isCollapsed = true;
 } else {
   var isCollapsed = false;
 }
-
-var baseLayers = {
-  "LIST Basemap": LISTTopographic,
-  "LIST Imagery": LISTAerial
-};
 
 var layerControl = L.control.layers(baseLayers, lOverlays, {
   collapsed: isCollapsed
