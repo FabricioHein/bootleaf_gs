@@ -12,3 +12,10 @@ That's it!
 It also supports adding initial layers, like this: http://alexgleith.github.io/bootleaf_gs/?https://maps.gcc.tas.gov.au/geoserver/GCC_cc/ows&layers=Stormwaterpipes with a comma separated list.
 
 There are a bunch of configurable components, all at the top of app.js.
+
+
+TODO
+----
+# Refactor some of the variables to be sources from the WMS GetCapabilities request.
+# Find some nice way to handle basemaps that are customisable
+# Ensure that the project is easy to copy!
