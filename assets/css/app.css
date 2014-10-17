@@ -9,6 +9,9 @@ body {
 input[type="radio"], input[type="checkbox"] {
   margin: 0;
 }
+.pac-container {
+  z-index: 9999;
+}
 #sidebar {
   width: 250px;
   height: 100%;
@@ -17,6 +20,17 @@ input[type="radio"], input[type="checkbox"] {
   -webkit-transition: all 0.25s ease-out;
     -moz-transition: all 0.25s ease-out;
     transition: all 0.25s ease-out;
+}
+#searchclear {
+    position: absolute;
+    right: 25px;
+    top: 0;
+    bottom: 0;
+    height: 14px;
+    margin: auto;
+    font-size: 14px;
+    cursor: pointer;
+    color: #ccc;
 }
 #map {
   width: auto;
