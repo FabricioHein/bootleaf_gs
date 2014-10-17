@@ -1,7 +1,8 @@
-#BootLeaf_gs
+#BootLeaf_GS
 
 
 Author: Alex Leith
+
 Original by Bryan McBride
 
 
@@ -9,6 +10,7 @@ A feeble attempt to load arbitary GeoServer layers in a pretty interface for fas
 
 ##Notes
 Here's what you need to do to get it working for your GeoServer:
+
 1. ensure that you have a reverse proxy and cross origin (for nginx add add_header Access-Control-Allow-Origin *; to allow everywhere)
 2. set up a URL using GitHub.io like this: http://alexgleith.github.io/bootleaf_gs/?https://maps.gcc.tas.gov.au/geoserver/GCC_cc/ows
 
