@@ -3,29 +3,26 @@ var map, featureLayers = [], featureLayersName = [];
 //Site specific variables...
 //these probably should be abstrated out into an optional local config file and/or local values pulled in from the getcapabilities request
 
-//Native projection from GeoServer WFS
-var src = new Proj4js.Proj('EPSG:4326');
-var dst = new Proj4js.Proj('EPSG:28355');
-
 //Attribution, get from WMS?
 var layerAttribution = 'Data &copy <a href=http://maps.gcc.tas.gov.au>GCC</a>, <a href="https://maps.gcc.tas.gov.au/licensing.html">CC-BY</a>';
 
 //Define base layers
-var LISTTopographic = new L.tileLayer("https://services.thelist.tas.gov.au/arcgis/rest/services/Basemaps/Topographic/ImageServer/tile/{z}/{y}/{x}", {
-    attribution: "Basemap &copy The LIST",
-    maxZoom: 20,
-    maxNativeZoom: 18
+var gray = L.tileLayer('http://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+    attribution: 'basemap: Esri, HERE, DeLorme, MapmyIndia, &copy OpenStreetMap contributors, and the GIS user community'
+}).addTo(map);
+
+var oceans = L.tileLayer('http://server.arcgisonline.com/arcgis/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}', {
+    attribution: 'basemap: Esri, DeLorme, GEBCO, NOAA NGDC, and other contributors'
 });
 
-var LISTAerial = new L.tileLayer("https://services.thelist.tas.gov.au/arcgis/rest/services/Basemaps/Orthophoto/ImageServer/tile/{z}/{y}/{x}", {
-    attribution: "Basemap &copy The LIST",
-    maxZoom: 20,
-    maxNativeZoom: 19
+var imagery = L.tileLayer('http://server.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    attribution: 'basemap &copy: 2013 ESRI, i-cubed, GeoEye'
 });
 
 var baseLayers = {
-  "LIST Basemap": LISTTopographic,
-  "LIST Imagery": LISTAerial
+  "ESRI Gray": gray,
+  "ESRI Oceans": oceans,
+  "ESRI Imagery": imagery
 };
 
 var startCenter = new L.LatLng(-42.8232,147.2555);
@@ -61,8 +58,13 @@ var QueryString = function () {
 //WMS Base URL
 var owsurl = QueryString.owsurl;
 
+//Native projection from GeoServer WFS
+var src = new Proj4js.Proj('EPSG:4326');
+var dst = new Proj4js.Proj('EPSG:4326');
+
 if(!owsurl) {
   owsurl = "https://maps.gcc.tas.gov.au/geoserver/GCC_cc/ows";
+  dst = new Proj4js.Proj('EPSG:28355');
 }
 
 $(document).on("click", ".feature-row", function(e) {
@@ -237,10 +239,10 @@ map = L.map("map", {
 //Set up trigger functions for adding layers to interactivity.
 map.on('overlayadd', function(e) {
     updateInteractiveLayers(e.layer.options.layers);
-}); 
+});
 map.on('overlayremove', function(e) {
     updateInteractiveLayers(e.layer.options.layers);
-}); 
+});
 
 map.on('click', function(e) {
     
