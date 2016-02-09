@@ -4,18 +4,18 @@ var map, featureLayers = [], featureLayersName = [];
 //these probably should be abstrated out into an optional local config file and/or local values pulled in from the getcapabilities request
 
 //Attribution, get from WMS?
-var layerAttribution = 'Data &copy <a href=http://maps.gcc.tas.gov.au>GCC</a>, <a href="https://maps.gcc.tas.gov.au/licensing.html">CC-BY</a>';
+var layerAttribution = 'Data &copy.';
 
 //Define base layers
-var gray = L.tileLayer('http://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+var gray = new L.tileLayer('http://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
     attribution: 'basemap: Esri, HERE, DeLorme, MapmyIndia, &copy OpenStreetMap contributors, and the GIS user community'
-}).addTo(map);
+});
 
-var oceans = L.tileLayer('http://server.arcgisonline.com/arcgis/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}', {
+var oceans = new L.tileLayer('http://server.arcgisonline.com/arcgis/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}', {
     attribution: 'basemap: Esri, DeLorme, GEBCO, NOAA NGDC, and other contributors'
 });
 
-var imagery = L.tileLayer('http://server.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+var imagery = new L.tileLayer('http://server.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
     attribution: 'basemap &copy: 2013 ESRI, i-cubed, GeoEye'
 });
 
@@ -231,7 +231,7 @@ function resetHighlight(e) {
 map = L.map("map", {
   zoom: startZoom,
   center: startCenter,
-  layers: [LISTTopographic],
+  layers: [gray],
   zoomControl: false,
   attributionControl: false
 });
